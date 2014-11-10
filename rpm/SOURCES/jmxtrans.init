@@ -30,10 +30,6 @@ if [ -r /etc/init.d/functions ]; then
     . /etc/init.d/functions
 fi
 
-if [ -f /etc/sysconfig/jmxtrans ]; then
-    . /etc/sysconfig/jmxtrans
-fi
-
 RETVAL=0
 prog="jmxtrans"
 user="jmxtrans"
@@ -42,23 +38,17 @@ lockdir=/var/lock/subsys
 lockfile=$lockdir/jmxtrans
 config=/etc/sysconfig/jmxtrans
 
+if [ -f "${config}" ]; then
+    . "${config}"
+fi
+
+
 start() {
     echo -n $"Starting $prog: "
-    touch /var/run/jmxtrans.pid
-    chown $user /var/run/jmxtrans.pid
 
-    # start_daemon on Suse, daemon on RH
-    if [ -x /sbin/startproc ]; then
-      HOME=/usr/share/jmxtrans startproc -s -e -l /var/log/jmxtrans.log -u $user $exec start
-      sleep 1
-      RETVAL=$?
-    else
-      daemon --user=$user $exec start
-      RETVAL=$?
-    fi
-
-    #$exec start
+    daemon --user=$user $exec start
     RETVAL=$?
+
     echo
     [ $RETVAL -eq 0 ] && [ -d $lockdir ] && touch $lockfile
 }
@@ -68,7 +58,7 @@ stop() {
     $exec stop
     RETVAL=$?
     echo
-    [ $RETVAL -eq 0 ] && [ -d $lockdir ] && rm -f $lockfile
+    [ $RETVAL -eq 0 ] && [ -f $lockfile ] && rm -f $lockfile
 }
 
 status() {
@@ -82,10 +72,12 @@ restart() {
 # See how we were called.
 case "$1" in
   start)
-        start
+        status && exit 0
+        $1
         ;;
   stop)
-        stop
+        status || exit 0
+        $1
         ;;
   status)
         status
